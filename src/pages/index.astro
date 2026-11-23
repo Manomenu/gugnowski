@@ -1,19 +1,19 @@
 ---
 import Base from "../layouts/Base.astro";
 import { sortedPosts, formatDate, readingMinutes } from "../posts";
-const topics = ["RAG", "chatboty konwersacyjne", "ewaluacja chatbotów", "observability", "fine-tuning", "agentic engineering"];
+const topics = ["RAG", "conversational chatbots", "chatbot evaluation", "observability", "fine-tuning", "agentic engineering"];
 ---
-<Base title="gugnowski / blog" description="Blog o AI engineeringu w praktyce: RAG, chatboty, ewaluacja, fine-tuning i spec-driven development z agentami.">
+<Base title="gugnowski / blog" description="A blog about AI engineering in practice: RAG, chatbots, evaluation, fine-tuning and spec-driven development with agents.">
   <main class="wrap home">
     <section class="intro">
-      <p class="eyebrow">AI engineering, z produkcji</p>
-      <h1>Piszę o tym, czego nauczyłem się, budując systemy AI.</h1>
-      <p class="lead">Każdy wpis to research albo doświadczenie z prawdziwego projektu: co działa, co nie, i na jakich dowodach to opieram.</p>
-      <ul class="topics" aria-label="Tematy">{topics.map((t) => <li>{t}</li>)}</ul>
+      <p class="eyebrow">AI engineering, from production</p>
+      <h1>What I learned building AI systems, written down.</h1>
+      <p class="lead">Every post is research or experience from a real project: what works, what doesn't, and the evidence behind it.</p>
+      <ul class="topics" aria-label="Topics">{topics.map((t) => <li>{t}</li>)}</ul>
     </section>
 
     <section aria-labelledby="posts-title">
-      <h2 id="posts-title" class="list-title">Wpisy</h2>
+      <h2 id="posts-title" class="list-title">Posts</h2>
       <ol class="posts">
         {sortedPosts.map((p) => (
           <li>
@@ -21,7 +21,7 @@ const topics = ["RAG", "chatboty konwersacyjne", "ewaluacja chatbotów", "observ
               <div class="meta">
                 <span class="kind">{p.kind}</span>
                 <time datetime={p.date}>{formatDate(p.date)}</time>
-                <span>{readingMinutes(p.html)} min czytania</span>
+                <span>{readingMinutes(p.html)} min read</span>
               </div>
               <h3>{p.title}</h3>
               <p>{p.description}</p>

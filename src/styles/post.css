@@ -37,10 +37,10 @@
 .callout { border: 1px solid var(--line); border-left-width: 4px; border-radius: var(--radius); padding: 12px 18px; margin: 16px 0; background: var(--paper); }
 .callout > :first-child { margin-top: 0; } .callout > :last-child { margin-bottom: 0; }
 .callout::before { display: block; font: 600 .7rem var(--mono); text-transform: uppercase; letter-spacing: .08em; margin-bottom: .3em; }
-.callout.decision { border-left-color: var(--accent); } .callout.decision::before { content: "Wniosek"; color: var(--accent); }
-.callout.warn { border-left-color: var(--warn); background: var(--warn-soft); } .callout.warn::before { content: "Uwaga"; color: var(--warn); }
-.callout.note { border-left-color: var(--note); background: var(--note-soft); } .callout.note::before { content: "Notatka"; color: var(--note); }
-.callout.assumption { border-left-color: var(--muted); border-style: dashed; } .callout.assumption::before { content: "Założenie"; color: var(--muted); }
+.callout.decision { border-left-color: var(--accent); } .callout.decision::before { content: "Conclusion"; color: var(--accent); }
+.callout.warn { border-left-color: var(--warn); background: var(--warn-soft); } .callout.warn::before { content: "Watch out"; color: var(--warn); }
+.callout.note { border-left-color: var(--note); background: var(--note-soft); } .callout.note::before { content: "Note"; color: var(--note); }
+.callout.assumption { border-left-color: var(--muted); border-style: dashed; } .callout.assumption::before { content: "Assumption"; color: var(--muted); }
 
 .tag { display: inline-block; font: 600 .7rem var(--sans); letter-spacing: .02em; padding: .15em .65em; border-radius: 99px; background: var(--card); color: var(--muted); vertical-align: middle; white-space: nowrap; }
 .tag.accent { color: var(--accent); background: var(--accent-soft); }
@@ -94,7 +94,7 @@
 .cols > * { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 18px; min-width: 0; font-size: .92rem; }
 .cols > * > :first-child { margin-top: 0; } .cols > * > :last-child { margin-bottom: 0; }
 .cols > .chosen { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
-.cols > .chosen h4::after { content: " ✓ wybrane"; color: var(--accent); font-size: .78rem; }
+.cols > .chosen h4::after { content: " ✓ chosen"; color: var(--accent); font-size: .78rem; }
 .cols > .rejected { opacity: .8; }
 
 .pick { display: grid; grid-template-columns: minmax(0, 1fr) 30px minmax(0, 15em); gap: 8px 0; align-items: center; margin: 16px 0; }

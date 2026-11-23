@@ -11,14 +11,14 @@ const toc = headings(post.html);
 ---
 <Base title={`${post.title} · gugnowski / blog`} description={post.description}>
   <div class="wrap post-layout">
-    <nav class="toc" aria-label="Spis treści">
-      <p class="toc-title">Spis treści</p>
+    <nav class="toc" aria-label="Table of contents">
+      <p class="toc-title">Contents</p>
       {toc.map((h) => <a href={`#${h.id}`}>{h.text}</a>)}
     </nav>
     <article class="post">
       <header class="post-head">
-        <a class="back" href="/">← Wszystkie wpisy</a>
-        <p class="post-meta"><span class="kind">{post.kind}</span><time datetime={post.date}>{formatDate(post.date)}</time><span>{readingMinutes(post.html)} min czytania</span></p>
+        <a class="back" href="/">← All posts</a>
+        <p class="post-meta"><span class="kind">{post.kind}</span><time datetime={post.date}>{formatDate(post.date)}</time><span>{readingMinutes(post.html)} min read</span></p>
         <h1>{post.title}</h1>
         <p class="post-lead">{post.description}</p>
         <div class="post-tags">{post.tags.map((t) => <span>#{t.replace(/ /g, "-")}</span>)}</div>

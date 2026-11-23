@@ -14,9 +14,9 @@ export interface Post {
 export const posts: Post[] = [
   {
     slug: "workflow-spec-driven",
-    title: "Workflow spec-driven z agentami",
+    title: "A spec-driven workflow with AI agents",
     description:
-      "Jak prowadzić spec-driven development z agentami AI, żeby specyfikacje nie gniły: żywa spec per feature, bramka zamiast czytania diffów i dwie ścieżki review. 20 źródeł i jedno badanie recenzowane.",
+      "How to run spec-driven development with AI agents so that specs don't rot: one living spec per feature, a gate instead of reading diffs, and two review paths. 20 sources and one peer-reviewed study.",
     date: "2026-10-31",
     tags: ["agentic engineering", "spec-driven", "guardrails", "gate"],
     kind: "Research",
@@ -39,5 +39,5 @@ export function readingMinutes(html: string) {
 }
 
 export function formatDate(iso: string) {
-  return new Intl.DateTimeFormat("pl-PL", { day: "numeric", month: "long", year: "numeric" }).format(new Date(iso));
+  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric" }).format(new Date(iso));
 }

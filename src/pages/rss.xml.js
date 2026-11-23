@@ -4,7 +4,7 @@ import { sortedPosts } from "../posts";
 export function GET(context) {
   return rss({
     title: "gugnowski / blog",
-    description: "AI engineering w praktyce: RAG, chatboty, ewaluacja, fine-tuning i praca z agentami.",
+    description: "AI engineering in practice: RAG, chatbots, evaluation, fine-tuning and working with agents.",
     site: context.site,
     items: sortedPosts.map((p) => ({ title: p.title, description: p.description, pubDate: new Date(p.date), link: `/${p.slug}/` })),
   });

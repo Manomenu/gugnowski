@@ -1,18 +1,18 @@
 # gugnowski / blog
 
-Blog o AI engineeringu: https://blog.gugnowski.com
+A blog about AI engineering: https://blog.gugnowski.com
 
-Astro, statyczny build, deploy na GitHub Pages przez GitHub Actions (`.github/workflows/deploy.yml`) przy każdym pushu na `master`.
+Astro, a static build, deployed to GitHub Pages by GitHub Actions (`.github/workflows/deploy.yml`) on every push to `master`.
 
-## Praca lokalnie
+## Work locally
 
 ```sh
 pnpm install
 pnpm dev        # http://localhost:4321
-pnpm check      # astro check + build, to samo co w CI
+pnpm check      # astro check + build, the same as CI
 ```
 
-## Nowy wpis
+## A new post
 
-1. Dodaj fragment HTML w `src/posts/<slug>.html`. Sekcje to `<section>` z `<h2>`, z nich powstaje spis treści. Bloki wizualne (`cards`, `flow`, `versus`, `pick`, `stats`, `callout`, `tag`, diagramy `<pre class="mermaid">`) są ostylowane w `src/styles/post.css`.
-2. Dopisz wpis do listy w `src/posts/index.ts`.
+1. Add an HTML fragment in `src/posts/<slug>.html`. Sections are `<section>` elements with an `<h2 id>`; the table of contents is built from them. The visual blocks (`cards`, `flow`, `versus`, `pick`, `stats`, `callout`, `tag`, `<pre class="mermaid">` diagrams) are styled in `src/styles/post.css`.
+2. Add the post to the list in `src/posts/index.ts`.

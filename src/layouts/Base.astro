@@ -5,7 +5,7 @@ const { title, description } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site);
 ---
 <!doctype html>
-<html lang="pl">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -26,19 +26,19 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <header class="site-head">
       <div class="wrap bar">
         <a class="brand" href="/"><span class="mark">g/</span>gugnowski<span class="slash">/blog</span></a>
-        <nav aria-label="Główna">
-          <a href="/">Wpisy</a>
+        <nav aria-label="Main">
+          <a href="/">Posts</a>
           <a href="https://github.com/Manomenu">GitHub</a>
           <a href="/rss.xml">RSS</a>
-          <button id="theme" type="button" aria-label="Przełącz jasny i ciemny motyw" title="Motyw"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/></svg></button>
+          <button id="theme" type="button" aria-label="Toggle light and dark theme" title="Theme"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/></svg></button>
         </nav>
       </div>
     </header>
     <slot />
     <footer class="site-foot">
       <div class="wrap">
-        <p>AI engineering w praktyce: RAG, chatboty, ewaluacja, fine-tuning i praca z agentami.</p>
-        <p class="small">© {new Date().getFullYear()} gugnowski · <a href="https://github.com/Manomenu/gugnowski">kod strony</a></p>
+        <p>AI engineering in practice: RAG, chatbots, evaluation, fine-tuning and working with agents.</p>
+        <p class="small">© {new Date().getFullYear()} gugnowski · <a href="https://github.com/Manomenu/gugnowski">site source</a></p>
       </div>
     </footer>
     <script is:inline>
