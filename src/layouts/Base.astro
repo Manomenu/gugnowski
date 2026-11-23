@@ -1,0 +1,70 @@
+---
+import "../styles/global.css";
+interface Props { title: string; description: string; }
+const { title, description } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+---
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="alternate" type="application/rss+xml" title="gugnowski / blog" href="/rss.xml" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:type" content="article" />
+    <script is:inline>
+      try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
+    </script>
+  </head>
+  <body>
+    <header class="site-head">
+      <div class="wrap bar">
+        <a class="brand" href="/"><span class="mark">g/</span>gugnowski<span class="slash">/blog</span></a>
+        <nav aria-label="Główna">
+          <a href="/">Wpisy</a>
+          <a href="https://github.com/Manomenu">GitHub</a>
+          <a href="/rss.xml">RSS</a>
+          <button id="theme" type="button" aria-label="Przełącz jasny i ciemny motyw" title="Motyw"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/></svg></button>
+        </nav>
+      </div>
+    </header>
+    <slot />
+    <footer class="site-foot">
+      <div class="wrap">
+        <p>AI engineering w praktyce: RAG, chatboty, ewaluacja, fine-tuning i praca z agentami.</p>
+        <p class="small">© {new Date().getFullYear()} gugnowski · <a href="https://github.com/Manomenu/gugnowski">kod strony</a></p>
+      </div>
+    </footer>
+    <script is:inline>
+      document.getElementById("theme").addEventListener("click", () => {
+        const root = document.documentElement;
+        const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+        root.dataset.theme = dark ? "light" : "dark";
+        try { localStorage.setItem("theme", root.dataset.theme); } catch {}
+        document.dispatchEvent(new CustomEvent("themechange"));
+      });
+    </script>
+  </body>
+</html>
+<style is:global>
+  .site-head { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  .site-head .bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 60px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; font: 700 1.02rem var(--mono); color: var(--ink-strong); text-decoration: none; }
+  .brand .mark { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--ink-strong); color: var(--bg); font-size: .82rem; }
+  .brand .slash { color: var(--accent); font-weight: 500; }
+  .site-head nav { display: flex; align-items: center; gap: 4px; }
+  .site-head nav a { color: var(--muted); text-decoration: none; font-size: .92rem; padding: 6px 10px; border-radius: 8px; }
+  .site-head nav a:hover { color: var(--ink-strong); background: var(--card); }
+  #theme { font: inherit; background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 8px; width: 34px; height: 34px; cursor: pointer; margin-left: 4px; display: grid; place-items: center; }
+  #theme:hover { color: var(--ink-strong); }
+  @media (max-width: 520px) { .site-head nav a[href^="https://github"] { display: none; } .brand .slash { display: none; } }
+  .site-foot { border-top: 1px solid var(--line); margin-top: 72px; padding-block: 28px 40px; color: var(--muted); font-size: .92rem; }
+  .site-foot p { margin: 0 0 6px; }
+  .site-foot .small { font-size: .82rem; }
+</style>

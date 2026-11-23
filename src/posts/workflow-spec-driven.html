@@ -1,0 +1,488 @@
+<section data-role="tldr">
+  <h2 id="tl-dr">TL;DR</h2>
+  <div class="tldr">
+    <p><b>Ten tekst ustala, co i dlaczego powinno być w workflow spec-driven z agentami AI.</b> Kolejność wdrożenia w firmie z dużym legacy (strangler, role, etapy) to temat na osobny wpis.</p>
+    <p><b>Baseline jest zgodny z najlepszymi dowodami, jakie dziś istnieją.</b> Jedyne recenzowane badanie SDD (CMU + Google) kończy się zaleceniami, które baseline już robi: kryteria akceptacyjne (AC) jako testy, id łączące spec z kodem, człowiek zatwierdza kryteria zamiast czytać kod linia po linii.</p>
+    <p><b>Nagromadzenie specyfikacji nie jest problemem; problemem jest spec, która gnije niezauważona.</b> Kontekst istnieje zawsze; bez specyfikacji żyje w głowach i czatach. Rozwiązanie to jedna żywa spec na feature, nie stos per zadanie, i bramka, która wywala się, gdy spec i kod się rozjadą.</p>
+    <p><b>Feature używany w 10 apkach to jedna spec, nie jedenaście.</b> Spec żyje u właściciela zachowania, apki spina z nim kontrakt (wygenerowany OpenAPI), a nie cudza spec. Bramka wymaga, żeby każde kryterium miało test, nie żeby każdy test miał kryterium: testy dopasowujące apkę do nowego kontraktu nie potrzebują AC-id ani specyfikacji. Apka dostaje deltę tylko, gdy zmienia się jej własne zachowanie.</p>
+    <p><b>Pięć poprawek do baseline'u:</b> skala specyfikacji do rozmiaru zadania; dwie ścieżki review z krótką listą „zawsze ostrożnie” zamiast czytania każdego diffu; reviewer ocenia guardraile po jednorazowej stronie od osobnego agenta, nie po kodzie testów; spec pisana tak, żeby człowiek ją przeczytał; kontrakt na granicy pilnowany przez narzędzie, nie procedurę.</p>
+    <p><b>W legacy kolejność jest odwrotna:</b> najpierw testy charakteryzacyjne i bramka, potem specki, na końcu nowe moduły jako osobne projekty w tej samej solucji.</p>
+  </div>
+  <div class="stats">
+    <div><b>1</b><span>badanie recenzowane (CMU/Google)</span></div>
+    <div><b>3</b><span>duże pomiary (DORA, Faros, SpecBench)</span></div>
+    <div><b>5</b><span>alternatywnych workflow</span></div>
+    <div><b>5</b><span>poprawek do baseline'u</span></div>
+  </div>
+</section>
+
+<section data-role="problem">
+  <h2 id="co-mowi-research">Co mówi research</h2>
+  <p>Każda karta to jedno źródło. Kolor tagu mówi, ile mu wierzyć: <span class="tag ok">badanie</span> ma metodę i próbę, <span class="tag accent">praktyk</span> to doświadczenie jednej osoby lub firmy, <span class="tag warn">vendor</span> sprzedaje narzędzie, o którym mówi.</p>
+
+  <div class="group">📄 Spec-driven development</div>
+  <div class="cards" style="--cols:2">
+    <div><span class="ico">🎓</span><h4>CMU + Google: SDD w praktyce</h4><p class="when">arXiv 2608.25202 · paź 2026 · 21 wywiadów, 266 repo, 470 tys. plików spec</p>
+      <p><b>Tak jest (obserwacja, nie zalecenie):</b> zespoły używają SDD selektywnie, głównie do nowych feature'ów, bo na małych zadaniach narzut boli. Ludzie czytają spec częściowo albo zlecają jej review agentowi, a kod sprawdzają testami, które napisał ten sam agent. Koszt: 2–3× tokenów, 2× dłużej na planowaniu, mniej poprawek potem.</p><p><b>Co z tego wynika (zalecenie autorów):</b> trzeba to zakładać i projektować proces pod to. Skoro ludzie nie czytają całej specyfikacji, spec ma nieść <b>intencję</b> i krótkie kryteria na początku, a detale implementacji wynieść poza nią (pomagają agentowi, ale sprawiają, że spec gnije). Skoro testy pisze agent, <b>kryteria mają być testami</b> z id do kodu, a człowiek ma zatwierdzać kryteria, bo to jedyny moment, w którym ktoś decyduje, co ma powstać.</p>
+      <div class="foot"><span class="tag ok">badanie</span></div></div>
+    <div><span class="ico">📡</span><h4>Thoughtworks Radar · Böckeler</h4><p class="when">lis 2025 · SDD = „Assess”</p>
+      <p><b>Tak jest:</b> trzy smaki SDD: <b>spec-first</b> (napisz, wyrzuć), <b>spec-anchored</b> (spec żyje obok kodu), <b>spec-as-source</b> (ludzie edytują tylko spec). Narzędzia są spec-first, choć obiecują więcej. Kiro zrobiło z małego buga 4 historyjki i 16 kryteriów; długie wygenerowane dokumenty są gorsze w review niż kod.</p><p><b>Co z tego wynika:</b> celować w spec-anchored, nie w spec-as-source. Unikać jednego ciężkiego flow dla każdego rozmiaru zadania i specek, których nikt nie chce czytać.</p>
+      <div class="foot"><span class="tag accent">praktyk</span></div></div>
+    <div><span class="ico">🗂️</span><h4>Spec Kit · Kiro · OpenSpec · Tessl</h4><p class="when">2025–2026 · dokumentacja i porównania</p>
+      <p><b>Tak jest:</b> Spec Kit i Kiro zostawiają folder specek <b>per zadanie</b>, nic ich potem nie scala. OpenSpec: <b>żywa spec + delta per zmiana</b>, archiwum wchłania deltę. Tessl: spec-as-source, niedeterministyczny. W publicznych repo większość plików spec ma <b>jeden commit</b>: napisane raz, nigdy nie utrzymywane.</p><p><b>Co z tego wynika:</b> model „żywa spec + delta” jest jedynym z udokumentowanym scalaniem. Unikać stosu per zadanie; założyć, że spec bez bramki nie będzie utrzymywana.</p>
+      <div class="foot"><span class="tag warn">vendor</span> <span class="tag ok">badanie</span></div></div>
+    <div><span class="ico">🪤</span><h4>„Spec to pułapka dryfu”</h4><p class="when">tddbuddy, lip 2026 · Kent Beck</p>
+      <p><b>Tak jest:</b> prozatorskie artefakty gniły już 4 razy: requirements docs, Gherkin, wiki, ręczny OpenAPI. Przetrwało to, co wykonywalne.</p><p><b>Co z tego wynika:</b> proza niech niesie intencję, <b>testy niech niosą twierdzenia</b>. Unikać specyfikacji, która powtarza to, co mówi test albo kod: to właśnie ta część zgnije pierwsza.</p>
+      <div class="foot"><span class="tag accent">praktyk</span></div></div>
+  </div>
+
+  <div class="group">📊 Produktywność i jakość z agentami</div>
+  <div class="cards" style="--cols:2">
+    <div><span class="ico">🔊</span><h4>DORA 2025</h4><p class="when">~5 000 osób</p>
+      <p><b>Tak jest:</b> AI to <b>wzmacniacz</b>: throughput rośnie, ale niestabilność też. Zyskują zespoły, w których zmianę da się zrobić w jednym miejscu, wdrożyć małymi porcjami i szybko zobaczyć, czy działa. <b>Tam, gdzie jedna zmiana ciągnie za sobą poprawki w wielu miejscach naraz</b> (wspólna baza, wspólne modele, kopiowany kod), AI nie daje prawie nic: agent szybciej produkuje te poprawki, ale też szybciej psuje sąsiadów. Tylko ~3% ma „wysokie zaufanie” do kodu AI.</p><p><b>Co z tego wynika:</b> najpierw granice, CI i małe partie, potem agenci. Feature, którego zmiana dotyka wielu miejsc naraz, to pierwszy kandydat na wyjęcie za kontrakt. Unikać wdrażania agentów tam, gdzie nie ma szybkiej bramki: wzmocnią chaos.</p>
+      <div class="foot"><span class="tag ok">badanie</span></div></div>
+    <div><span class="ico">🔁</span><h4>Faros: paradoks produktywności</h4><p class="when">2025 · telemetria 10 tys. devów</p>
+      <p><b>Tak jest:</b> zespoły z dużym AI: <b>+98%</b> zmergowanych PR, ale <b>+91%</b> czasu review, <b>+154%</b> rozmiaru PR, +9% bugów. Na poziomie firmy: <b>płasko</b>.</p><p><b>Co z tego wynika:</b> wąskie gardło przesuwa się z pisania do review; zysk zjada reviewer. Małe PR-y i review oparte o spec i bramkę, nie o czytanie diffu, albo nic nie przyspiesza.</p>
+      <div class="foot"><span class="tag warn">vendor</span></div></div>
+  </div>
+
+  <div class="group">🛡️ Guardraile i review</div>
+  <div class="cards" style="--cols:3">
+    <div><span class="ico">🎯</span><h4>SpecBench · EvilGenie</h4><p class="when">arXiv 2605.21384, 2511.21654 · 2026</p>
+      <p><b>Tak jest:</b> każdy agent <b>saturuje widoczne testy</b>, a na ukrytych zostaje luka, która rośnie <b>+28 p.p. na każde 10× kodu</b>. Widziano twarde oszustwa: edycja testów, „kompilator” z tablicą odpowiedzi. Utwardzenie środowiska cięło exploity o 88%.</p><p><b>Co z tego wynika:</b> bramkę, którą agent widzi i może edytować, trzeba traktować jako ogrywalną. Testy i nagrane wzorce zachowania poza zasięgiem agenta, osobny agent-reviewer, i im większy kod, tym ważniejsze.</p>
+      <div class="foot"><span class="tag ok">badanie</span></div></div>
+    <div><span class="ico">🚦</span><h4>Vercel: 58% PR bez człowieka</h4><p class="when">kwi 2026 · 400+ PR/tydz.</p>
+      <p><b>Tak jest:</b> agent klasyfikuje ryzyko; low-risk merguje po bramkach. <b>671 PR bez review: 0 revertów</b>, grupa kontrolna z review: 0,39%. Merge 29 h → 10,9 h. Zawsze człowiek: 100+ plików, ścieżki CODEOWNERS.</p><p><b>Co z tego wynika:</b> rezygnacja z ludzkiego review działa <b>per kategoria ryzyka</b>, z twardymi wyjątkami i pomiarem revertów, nie jako jedna decyzja dla całej firmy.</p>
+      <div class="foot"><span class="tag warn">vendor</span> <span class="tag note">z grupą kontrolną</span></div></div>
+    <div><span class="ico">🧰</span><h4>OpenAI: harness engineering</h4><p class="when">lut 2026 · ~1 mln linii, 0 ręcznego kodu, 5 mies.</p>
+      <p><b>Tak jest:</b> docs w repo jako <b>jedyne źródło prawdy</b> dla agenta; warstwy architektury <b>egzekwowane linterami i CI</b>, nie prośbą; agent sam reprodukuje bugi z logów. Ludzie projektują środowisko, piszą intencję, prowadzą PR.</p><p><b>Co z tego wynika:</b> czego nie ma w repo, tego dla agenta nie ma. Reguła, która ma być przestrzegana, musi być kodem (lint, test, hook), nie zdaniem w instrukcji.</p>
+      <div class="foot"><span class="tag warn">vendor</span></div></div>
+  </div>
+</section>
+
+<section data-role="behaviour">
+  <h2 id="baseline-moj-workflow">Baseline: mój workflow</h2>
+  <div class="flow">
+    <div class="alt"><span class="tag note">dev + AI</span><h4>Spec</h4><p class="when">nowa albo zmiana istniejącej</p><ul><li>co i dlaczego</li><li>kryteria AC-&lt;feature&gt;-n</li></ul><div class="foot"><span class="btn ok">✅ Approve</span></div></div>
+    <div><span class="tag accent">agent</span><h4>Plan → build</h4><p class="when">w szablonie <a href="https://github.com/Manomenu/solid-dotnet-app-tpl">solid-dotnet</a></p><ul><li>szybka bramka po każdej turze (hook, <code>--quick</code>), pełna przed pushem</li><li>agent nie edytuje bramki</li><li>każde AC ma guardrail; pilnuje tego check <code>just criteria</code> z szablonu</li></ul></div>
+    <div class="alt"><span class="tag note">dev</span><h4>Recap</h4><p class="when">strona, nie diff</p><ul><li>AC z dowodami</li><li>odstępstwa (deviation)</li></ul><div class="foot"><span class="btn ok">✅ Push</span></div></div>
+    <div class="alt"><span class="tag note">reviewer</span><h4>Review</h4><p class="when">spec + strona guardraili, nie diff</p><ul><li>czy spec ma sens</li><li>macierz AC → guardrail: czy pada, gdy zachowanie pęknie; czy jest na bramce</li></ul></div>
+    <div><span class="tag accent">agent</span><h4>Review kodu</h4><p class="when">diff, jakość</p><ul><li>bugi, duplikaty</li><li>styl, złożoność</li></ul><div class="foot"><span class="tag ok">merge</span></div></div>
+  </div>
+  <div class="strip"><span class="lbl">Po merge</span> spec przepisana na finalną i commitowana z kodem · plan / recap / guardraile / QA to pliki robocze, gitignored</div>
+  <div class="callout note"><p><b>Nikt nie czyta kodu testów, żeby ocenić guardraile.</b> Stronę guardraili (macierz kryterium → guardrail z dwoma pytaniami: czy pada, gdy zachowanie pęknie, i czy jest na bramce) generuje <b>inny agent niż autor testów</b>. Strona jest <b>jednorazowa: ważna do zamknięcia MR-a</b>, potem bez wartości, gitignored jak plan i recap. Człowiek zatwierdza albo odrzuca per kryterium i do kodu testu zagląda tylko przy werdykcie „słaby” albo „brak”. Testy bez AC-id (adaptacyjne, regresje) nie są w macierzy: ogląda je agent-reviewer w diffie, człowiek tylko na ścieżce ostrożnej. Że macierz nie kłamie, dowodzi kwartalny seeded-bug drill, nie oko reviewera.</p></div>
+
+  <h3>Ocena wobec researchu</h3>
+  <table>
+    <tr><th>Element baseline'u</th><th>Co mówi research</th><th>Werdykt</th></tr>
+    <tr><td>Spec żyje obok kodu, nie zastępuje go</td><td>Böckeler: to „spec-anchored”, jedyny smak, który działa; spec-as-source nikt nie dowozi</td><td><span class="tag ok">mocna strona</span></td></tr>
+    <tr><td>AC z id → test/lint na bramce, bramka sprawdza oba kierunki</td><td>CMU: dokładnie to zaleca (AC jako testy, traceability klauzul); tddbuddy: tylko wykonywalne przetrwało</td><td><span class="tag ok">mocna strona</span></td></tr>
+    <tr><td>Bramka po każdej turze, agent nie edytuje bramki, SKIP = FAIL</td><td>OpenAI: reguły w linterach, nie w prompcie; EvilGenie: edycja testów to realny wektor</td><td><span class="tag ok">mocna strona</span></td></tr>
+    <tr><td>Człowiek patrzy na spec i guardraile, agent na diff</td><td>CMU: wysiłek lepiej wydać na kryteria niż na czytanie linii; Vercel: działa przy klasyfikacji ryzyka</td><td><span class="tag ok">mocna strona</span></td></tr>
+    <tr><td>Jeden flow dla każdego zadania</td><td>CMU, Böckeler: SDD na małe zadania = „bad time”; 16 AC na buga</td><td><span class="tag bad">słaba strona</span></td></tr>
+    <tr><td>Review każdego PR przez człowieka</td><td>Faros: +91% czasu review; CMU: ocena rośnie ponad możliwości człowieka</td><td><span class="tag bad">słaba strona</span></td></tr>
+    <tr><td>Bramka widoczna dla agenta jest jedyną kontrolą</td><td>SpecBench: luka na ukrytych testach rośnie z rozmiarem; testy pisze ten sam agent, co kod</td><td><span class="tag bad">słaba strona</span></td></tr>
+    <tr><td>Spec ma być przeczytana przez człowieka</td><td>CMU: większość czyta częściowo albo deleguje agentowi; to jedyny moment decyzji</td><td><span class="tag warn">ryzyko</span></td></tr>
+    <tr><td>Start od greenfield szablonu</td><td>Brak dowodów za i przeciw; DORA: zespoły „legacy bottleneck” zyskują najmniej, dopóki nie naprawią podstaw</td><td><span class="tag warn">ryzyko</span></td></tr>
+  </table>
+</section>
+
+<section data-role="context">
+  <h2 id="czy-nagromadzenie-specyfikacji-to-realny-problem">Czy nagromadzenie specyfikacji to realny problem?</h2>
+  <div class="callout decision"><p><b>Nie. Realny problem to spec, która zgniła i nikt tego nie widzi.</b> Kontekst projektu istnieje zawsze, w tej samej ilości. Pytanie brzmi tylko, czy jest zapisany tam, gdzie zespół i agent go odczytają, i czy coś się wywala, gdy przestaje być prawdą.</p></div>
+
+  <div class="versus">
+    <div class="before"><h4><span class="tag bad">Kontekst niejawny</span> w głowach, czatach, ticketach</h4>
+      <ul><li>intencja ginie z sesją agenta; kolejny agent i kolejna osoba zaczynają od zera (CMU: „vibe coding” jako wzorzec straty)</li>
+        <li>review porównuje kod z… niczym; reviewer nie wie, co miało powstać</li>
+        <li>wiedza plemienna: „tego enuma nie ruszaj” wie jedna osoba</li>
+        <li>spec rośnie i tak, tylko w Slacku i w pamięci; nie da się jej przeszukać ani zgrepować</li>
+        <li>każda zmiana to re-odkrywanie: agent i człowiek czytają cały kod, żeby zgadnąć, co było zamierzone</li></ul></div>
+    <div class="after"><h4><span class="tag ok">Kontekst jawny</span> w repo, wersjonowany, z bramką</h4>
+      <ul><li>intencja przeżywa sesję; recap i review mają z czym porównać</li>
+        <li>reviewer czyta spec, nie 1000 linii diffu (CMU: tam lepiej wydać uwagę)</li>
+        <li>reguły stają się linterem albo testem, nie zdaniem, które ktoś pamięta</li>
+        <li>git = historia; „dlaczego” wyszukiwalne po roku</li>
+        <li>agent dostaje spec feature'u, w którym pracuje, zamiast zgadywać zasady z całego kodu</li></ul></div>
+  </div>
+
+  <h3>Co w zapisanym kontekście jest trwałe, a co gnije</h3>
+  <div class="cards" style="--cols:3">
+    <div><span class="ico">🎯</span><h4>Intencja</h4><p class="when">problem, cele, nie-cele</p><p>zmienia się rzadko; warta utrzymania</p><div class="foot"><span class="tag ok">trwałe</span></div></div>
+    <div><span class="ico">⚖️</span><h4>Decyzje</h4><p class="when">dlaczego tak, a nie inaczej</p><p>Domyślnie w specyfikacji feature'u, sekcja „Decyzje”: jedno zdanie, co wybrano i czemu nie inaczej. Gdy decyzja dotyczy wielu feature'ów, wychodzi do <code>docs/adr/</code> jako osobny plik (ADR: kontekst, opcje, wybór, konsekwencje), a specyfikacje do niego linkują. Decyzji się nie edytuje: zmiana zdania to nowy wpis, stary zostaje ze statusem „zastąpiony”, bo „czemu kiedyś było Y” też jest wiedzą. Nie gnije, bo opisuje przeszłość</p><div class="foot"><span class="tag ok">trwałe</span></div></div>
+    <div><span class="ico">✅</span><h4>Kryteria</h4><p class="when">AC-&lt;feature&gt;-n</p><p>trwałe tylko, gdy test je pilnuje; inaczej gniją jak proza</p><div class="foot"><span class="tag note">trwałe z bramką</span></div></div>
+    <div><span class="ico">🔧</span><h4>Jak to zrobić</h4><p class="when">pliki, kroki, kształt kodu</p><p>CMU: pomaga agentowi dziś, przestaje być prawdą jutro</p><div class="foot"><span class="tag bad">gnije</span></div></div>
+    <div><span class="ico">🧾</span><h4>Plan · recap · QA</h4><p class="when">jedno zadanie</p><p>wartość kończy się z mergem; w repo tylko by szumiały</p><div class="foot"><span class="tag bad">jednorazowe</span></div></div>
+  </div>
+  <p>Mój podział (spec commitowana, plan/recap/QA gitignored) trafia dokładnie w tę linię. Ryzyko jest w środku specyfikacji: gdy do „co i dlaczego” wpełzają detale „jak”, spec zaczyna gnić. Jakie sekcje spec ma mieć i co ją trzyma przy życiu, zbiera sekcja „Wniosek” niżej.</p>
+
+  <h3>Trzy sposoby trzymania specek i co z nimi po roku</h3>
+  <div class="cols">
+    <div class="rejected"><h4>A. Stos per zadanie</h4><p>Każde zadanie zostawia własny folder spec/plan/tasks (Spec Kit, Kiro).</p><p><b>+</b> tanie, historia rozumowania <b>−</b> po roku 80 folderów, z których żaden nie mówi, jak system działa dziś; w repo publicznych większość ma 1 commit; agent ładuje do kontekstu nieaktualne pliki</p></div>
+    <div class="chosen"><h4>B. Żywa spec per feature + delta per zadanie</h4><p>Jedna spec na feature (ten sam slug); zadanie ją zmienia; po merge spec przepisana na finalną (OpenSpec archive; mój model). <b>Feature</b> znaczy w całym dokumencie jedno zachowanie z jednym właścicielem, np. „rabaty”: nie projekt, nie repo, nie ekran, niezależnie od tego, ile miejsc go używa.</p><p><b>+</b> zawsze jeden opis stanu obecnego, git = historia, id AC stabilne <b>−</b> zmiana w A może unieważnić zdanie w specyfikacji B (CMU: „spec decay” przez zależności)</p></div>
+    <div class="rejected"><h4>C. Wyrzucać po implementacji</h4><p>Spec = plan jednorazowy; prawdą są kod, testy i zapisane decyzje.</p><p><b>+</b> zero gnicia <b>−</b> intencja ginie; review nie ma punktu odniesienia; „zamknięte oczy” z lewej kolumny</p></div>
+  </div>
+
+  <h3>Skąd bierze się gnicie i co je łapie</h3>
+  <table>
+    <tr><th>Przyczyna</th><th>Objaw</th><th>Mechanizm w baseline</th><th>Luka</th></tr>
+    <tr><td>Agent odchodzi od specyfikacji w trakcie (<b>dryf implementacji</b>)</td><td>spec mówi 30 min, kod robi 60</td><td>AC jako test na bramce; recap z dowodami</td><td>AC bez testu, bo „nie da się przetestować”; w baseline: takie AC wylatuje ze specyfikacji</td></tr>
+    <tr><td>Kod zmienia się później, spec zostaje (<b>spec decay</b>)</td><td>zdanie w specyfikacji jest fałszywe, nic nie czerwieni</td><td>bramka: AC-id bez guardraila albo id bez specyfikacji = fail</td><td>łapie tylko AC z id; zwykła proza w specyfikacji gnije bez sygnału</td></tr>
+    <tr><td>Zmiana w feature A psuje zdanie w specyfikacji B</td><td>10 specek opisuje ten sam przepływ</td><td>—</td><td>potrzebny krok „które specki wspominają X” przed mergem (agent, grep po nazwach domenowych)</td></tr>
+    <tr><td>Detale implementacji w specyfikacji</td><td>spec większa niż kod, nikt jej nie czyta</td><td>szablon spec: zachowanie, nie pliki; „jak” idzie do planu</td><td>dyscyplina przy review specyfikacji</td></tr>
+  </table>
+
+</section>
+
+<section data-role="explosion">
+  <h2 id="eksplozja-specek-1-feature-10-miejsc-11-specek">Eksplozja specek: 1 feature, 10 miejsc, 11 specek?</h2>
+  <div class="callout decision"><p><b>Liczba specek idzie za kształtem zachowania, nie za podziałem na repozytoria.</b> Feature użyty w 10 apkach to <b>jedna spec u właściciela + jeden kontrakt na granicy</b>. 10 apek pilnuje CI (zgodność kontraktu, testy adaptacyjne bez AC-id), nie 10 specek „integracji”. Apka dostaje coś tylko wtedy, gdy zmienia się <b>jej własne</b> zachowanie, i wtedy jest to jedna linia delty w jej istniejącej żywej specyfikacji, nie nowy dokument.</p></div>
+  <p><b>Kontrakt</b> znaczy tu plik opisujący kształt granicy między backendem (właścicielem feature'u) a apkami, które go używają (konsumentami): OpenAPI dla REST, schemat eventu dla kolejki. Backend generuje go z kodu (w szablonie to <code>openapi.json</code>), apki budują z niego typy i stuby do testów. Czy go wersjonować i jak mocno nim pilnować apek, to osobna, opcjonalna decyzja; omawia ją blok „Kontrakt na granicy” pod koniec tej sekcji.</p>
+
+  <div class="versus">
+    <div class="before"><h4><span class="tag bad">Spec per repo</span> (podział techniczny)</h4>
+      <ul><li>zmiana feature'u = 1 spec + 10 specek konsumentów; 11 reviewów</li>
+        <li>to samo zdanie o zachowaniu w 11 plikach; gnije w 10 z nich</li>
+        <li>agent pracujący w apce nie widzi, czego wymaga backend</li>
+        <li>dziś: te 11 „specek” istnieje w głowach 11 osób; nikt nie wie, kogo zmiana dotknie</li></ul></div>
+    <div class="after"><h4><span class="tag ok">Spec per feature, u właściciela + kontrakt</span></h4>
+      <ul><li>zmiana feature'u = 1 spec + 1 kontrakt; 10 apek pilnuje CI; dotknięte apki dostają tickety</li>
+        <li>zachowanie opisane raz, u właściciela; apki linkują wersję kontraktu, nie kopiują</li>
+        <li>agent w apce dostaje kontrakt (typy z OpenAPI / schemat eventu), nie cudzą spec</li>
+        <li>bramka mówi, kogo zmiana dotknie: czerwony check zgodności u właściciela, czerwona kompilacja w apce</li></ul></div>
+  </div>
+
+  <figure class="diagram"><pre class="mermaid">flowchart LR
+  subgraph B["repo backendu (właściciel)"]
+    SP["żywa spec feature'u&lt;br/&gt;co · dlaczego · AC-rabaty-n&lt;br/&gt;publikuje kontrakt rabaty"] --&gt; TB["testy z AC-rabaty-n&lt;br/&gt;+ check zgodności schematu z poprzednią wersją"]
+  end
+  TB --&gt; K["kontrakt&lt;br/&gt;OpenAPI / schemat eventu&lt;br/&gt;wersjonowany artefakt"]
+  subgraph A["repo apki ×10 (konsument)"]
+    K --&gt; G["typy + stub&lt;br/&gt;z przypiętej wersji (openapi.d.ts)"]
+    G --&gt; TA["testy adaptacyjne&lt;br/&gt;bez AC-id · tag kontrakt@wersja"]
+    SA["żywa spec apki&lt;br/&gt;AC-koszyk-n"] --&gt; TK["testy z AC-koszyk-n"]
+    G --&gt; TK
+  end
+  </pre><figcaption>Dwa repozytoria spina kontrakt, nie cudzy kod: każde AC-id i jego test żyją w jednym repo</figcaption></figure>
+
+  <h3>Co pisać przy zmianie feature'u używanego w 10 miejscach</h3>
+  <div class="pick">
+    <div class="if">Kontrakt się nie zmienia (zmiana wewnątrz feature'u); stare testy apek zielone to dowód</div><div class="then ok">1 spec · 0 w apkach <small>delta</small></div>
+    <div class="if">Kontrakt rośnie zgodnie wstecz (nowe pole, nowy endpoint); apki adoptują, kiedy chcą</div><div class="then ok">1 spec + wersja · 0 w apkach</div>
+    <div class="if">Kontrakt się łamie, zachowanie apek to samo: autor zmiany wyszukuje dotknięte apki i zakłada im tickety; apka przegenerowuje typy i stub z nowego kontraktu (nowy <code>openapi.json</code> backendu), poprawia, co przestało się kompilować, dopisuje testy adaptacyjne; stare AC apki zielone</div><div class="then note">1 spec · małe tickety <small>nie specek, nie lista w specyfikacji</small></div>
+    <div class="if">Apka zmienia własne zachowanie (np. pokazuje nowe pole): realna zmiana produktu, którą i tak warto mieć opisaną</div><div class="then">1 linia delty w specyfikacji apki <small>1 nowe AC</small></div>
+    <div class="if">Kto w ogóle konsumuje? Listy nikt nie utrzymuje, bo gnije jak każdy zrzut cudzego stanu; dotknięte apki ustala się w chwili zmiany łamiącej, jak wygodnie</div><div class="then muted">wyszukana, nie utrzymywana <small>lista żyje w ticketach</small></div>
+  </div>
+
+  <h3>Dwie rzeczy, które nie są kryterium w żadnym repo</h3>
+  <table>
+    <tr><th>Co</th><th>Repo</th><th>Dlaczego</th><th>Kto pilnuje</th></tr>
+    <tr><td>AC typu „wszyscy konsumenci dalej działają”</td><td>żadne</td><td>takiego kryterium nie ma w żadnej specyfikacji; to własność bramki (sekcja „Wniosek: bramka”), nie zachowanie feature'u</td><td>CI: wersje kontraktu, check zgodności, kompilacja apek z nowymi typami</td></tr>
+    <tr><td>AC-id z cudzego repo</td><td>nigdy</td><td>test w apce nazywający <code>AC-rabaty-3</code></td><td>bramka czyta tylko własne repo i tak ma zostać; czerwona bramka</td></tr>
+  </table>
+
+  <h3>Reguła bramki działa w jedną stronę</h3>
+  <div class="versus">
+    <div class="before"><h4><span class="tag bad">Obawa</span> łańcuch w obie strony</h4>
+      <ul><li>test w apce testuje integrację, więc musi mieć AC-id</li>
+        <li>AC-id musi mieć spec w tym repo</li>
+        <li>więc każda zmiana backendu wymusza spec w każdej apce</li></ul></div>
+    <div class="after"><h4><span class="tag ok">Reguła</span> tylko spec → test</h4>
+      <ul><li>każde kryterium w specyfikacji musi mieć test</li>
+        <li>każdy id w teście musi istnieć w specyfikacji tego repo</li>
+        <li>test bez id jest w porządku; pierwsze ogniwo obawy nie istnieje</li></ul></div>
+  </div>
+
+  <div class="pick">
+    <div class="if">Kryterium w specyfikacji bez żadnego guardraila</div><div class="then note">czerwona bramka <small>dopisz test z id</small></div>
+    <div class="if">Id w teście, którego nie ma w specyfikacji tego repo</div><div class="then note">czerwona bramka <small>przywróć AC albo usuń id</small></div>
+    <div class="if">Id wpisany w miejscu, które samo niczego nie sprawdza: komentarz w kodzie produkcyjnym, konfig, którego żadne narzędzie nie czyta; wygląda jak guardrail, a nim nie jest</div><div class="then note">czerwona bramka <small>przenieś id do testu albo reguły</small></div>
+    <div class="if">Test bez żadnego id: regresja, bug, adaptacja do kontraktu</div><div class="then ok">w porządku <small>bramka go nie liczy</small></div>
+  </div>
+  <div class="strip"><span class="lbl">Kiedy nowe AC</span> tylko przy nowym zachowaniu · „po przejściu na v2 ekran dalej pokazuje rabat” nie jest nowym zachowaniem, tylko dowodem, że stare przetrwało</div>
+
+  <h3>Testy adaptacyjne: bez AC-id, ale nie bez pochodzenia</h3>
+  <p>Intencja za testem adaptacyjnym żyje w specyfikacji backendu, której do apki nie kopiujemy. Test niesie więc <b>wskaźnik</b>: nazwę i wersję kontraktu, bo wersja nie gnije, a ścieżka do pliku w cudzym repo tak.</p>
+  <table>
+    <tr><th>Test pilnuje</th><th>Oznaczenie w teście</th><th>Gdzie żyje intencja</th><th>Bramka</th></tr>
+    <tr><td>zachowania tej apki</td><td><code>AC-koszyk-2</code></td><td>spec w tym repo</td><td>liczy: kryterium ↔ guardrail</td></tr>
+    <tr><td>adaptacji do cudzego kontraktu</td><td><code>rabaty@v2</code> (tag kontraktu)</td><td>spec właściciela przez wersję kontraktu; ticket w commicie mówi, kiedy i czemu</td><td>dziś nie czyta; na później: tag z wersją inną niż wygenerowane typy wychodzi na czerwono</td></tr>
+    <tr><td>regresji albo buga</td><td>nic</td><td>ticket w commicie, git blame</td><td>nie liczy</td></tr>
+  </table>
+  <p class="wf-muted">W .NET tag kontraktu to ten sam mechanizm, co id kryterium: atrybut <code>Trait</code> na teście; w testach web słowo w tytule.</p>
+
+  <h3>Kontrakt na granicy: opcja do rozważenia, nie wymóg</h3>
+  <p>Nic z powyższego nie wymaga wersjonowanego kontraktu. „1 spec zamiast 11”, reguła bramki w jedną stronę i testy bez AC-id działają bez niego. Kontrakt zmienia tylko <b>kiedy</b> zespół dowiaduje się, że zmiana backendu zepsuła apkę: dziś na e2e albo na produkcji, z kontraktem przed merge'em u właściciela. Czy to się opłaca, mówią trzy liczby z ostatniego kwartału, nie przekonania.</p>
+  <div class="stats">
+    <div><b>incydenty</b><span>ile razy w kwartale apka padła przez zmianę backendu, o której nikt jej nie uprzedził?</span></div>
+    <div><b>apek na zmianę</b><span>ile apek musi coś poprawić po jednej zmianie łamiącej kontrakt?</span></div>
+    <div><b>wydania</b><span>czy backend i apki wydaje się razem, jedną paczką, czy osobno?</span></div>
+  </div>
+  <div class="versus">
+    <div class="before"><h4><span class="tag warn">Przeciw</span> koszt wdrożenia do workflow</h4>
+      <ul><li>nowy krok: publikacja kontraktu, podbijanie wersji w każdej apce</li>
+        <li>semver trzeba rozumieć i stosować konsekwentnie</li>
+        <li>rejestr, narzędzie do diffu, kolejna rzecz do utrzymania</li>
+        <li>przy wspólnym wydaniu całości daje prawie nic</li>
+        <li>kontrakt nie naprawia złej granicy: gdy prawie każda zmiana backendu łamie API, kontrakt tylko dokumentuje kolejne złamania i podbija wersje; luźne sprzężenie daje architektura, nie wersjonowanie</li></ul></div>
+    <div class="after"><h4><span class="tag ok">Za</span> co daje</h4>
+      <ul><li>złamanie widać u właściciela, zanim 10 apek to odkryje</li>
+        <li>apki wydawane niezależnie od backendu</li>
+        <li>agent w apce wie, z jakim kształtem pracuje</li>
+        <li>odpowiedź na „kogo dotknie ta zmiana” daje CI, nie pamięć</li>
+        <li>luźne sprzężenie, bez którego AI nie daje prawie nic</li></ul></div>
+  </div>
+  <table>
+    <tr><th>Poziom</th><th>Co</th><th>Kiedy wystarcza</th><th>Koszt</th></tr>
+    <tr><td><b>0</b> dziś</td><td>apki integrują się z „aktualnym” backendem, bez widocznej wersji</td><td>wspólne wydania, złamania rzadkie, liczby wyżej bliskie zeru</td><td>płacony na ślepo: niespodzianki na e2e i produkcji</td></tr>
+    <tr><td><b>1</b> <span class="tag ok">wybrany start</span></td><td>jeden job w CI backendu: diff <code>openapi.json</code> wobec gałęzi głównej, czerwony przy zmianie łamiącej; apka generuje typy z konkretnego commita backendu i ma jego SHA w nagłówku wygenerowanego pliku</td><td>zawsze; nie zmienia niczyjego nawyku, to narzędzie, nie procedura (reguła niżej)</td><td>godziny; brak rejestru, numerów wersji i publikacji</td></tr>
+    <tr><td><b>2</b></td><td>kontrakt jako paczka z numerem wersji w feedzie, który zespół już ma (NuGet, npm); apka pinuje wersję jak bibliotekę; podbicie to mały ticket (tier S)</td><td>apki wydawane osobno od backendu, złamania co sprint, więcej niż kilku konsumentów</td><td>publikacja, semver, podbijanie w każdej apce</td></tr>
+    <tr><td><b>3</b> Pact</td><td>apka zapisuje u siebie oczekiwane odpowiedzi, CI backendu je weryfikuje przed deployem</td><td>kształt zgodny, a semantyka i tak psuje apki</td><td>broker, oczekiwania pisane i utrzymywane w każdej apce; najdroższe</td></tr>
+  </table>
+  <div class="strip"><span class="lbl">Zasada</span> poziom 1 od razu, bo nic nie kosztuje w nawykach · wyżej dopiero po pomiarze, nie z góry · rejestr schematów to poziom 2 dla eventów</div>
+
+  <div class="cols">
+    <div><h4>To dług, ale nie dług specek</h4><p>Jeśli jedna zmiana dotyka 11 miejsc, to <b>sprzężenie</b> już tam jest. Bez specek płaci się je przy każdej zmianie: ktoś musi pamiętać 10 apek, a o jedenastej dowiaduje się z produkcji. SDD tego kosztu nie tworzy, tylko go <b>pokazuje</b>. DORA 2025: w ciasno sprzężonych systemach AI nie daje prawie nic; to ten sam problem.</p></div>
+    <div><h4>Liczba delt w apkach = miernik</h4><p>Ile apek musi zmienić własne zachowanie przy jednej zmianie backendu. Jeśli prawie każda zmiana łamie kontrakt i rozchodzi się po wszystkich apkach, backend nie ma stabilnej granicy. Feature, który regularnie ciągnie delty w kilku apkach, to pierwszy kandydat do <b>wyjęcia za własną granicę</b>: jeden właściciel, jeden kontrakt, reszta rozmawia z nim tylko przez ten kontrakt. Miernik jest w tabeli „Jak poznamy, że działa”.</p></div>
+  </div>
+
+  <div class="callout warn"><p><b>Wszystko wyżej zakłada, że granica istnieje.</b> Gdy jej nie ma (wspólna baza, wspólne modele wewnętrzne, kopiowany kod), nie ma czego porównać w CI ani komu założyć ticketu. Najpierw granica; jak ją zrobić w legacy, mówi sekcja o brownfieldzie.</p></div>
+</section>
+
+<section data-role="repo-context">
+  <h2 id="gdzie-w-repo-zyje-jaki-kontekst">Gdzie w repo żyje jaki kontekst</h2>
+  <p>Poprzednie dwie sekcje mówią, <b>że</b> kontekst ma być w repo. Ta mówi, <b>gdzie</b>: nie wszystko ma być zawsze w głowie agenta, i nie wszystko ma być prozą.</p>
+
+  <figure class="diagram"><pre class="mermaid">flowchart TB
+  A["AGENTS.md · ~100 linii&lt;br/&gt;mapa, komendy, reguły, których nic nie sprawdza"] --&gt;|"zawsze w kontekście"| AG((agent))
+  S["docs/visual/spec/&amp;lt;feature&amp;gt;.html&lt;br/&gt;żywa spec: co, dlaczego, AC-id"] --&gt;|"na żądanie: zadanie w tym feature"| AG
+  D["decyzje: w specyfikacji,&lt;br/&gt;ponad feature'em w docs/adr/"] --&gt;|"na żądanie"| AG
+  C["CONTEXT.md w module legacy&lt;br/&gt;po co ten moduł, pułapki, od czego zacząć"] --&gt;|"gdy zadanie wchodzi do modułu"| AG
+  G["bramka: testy · lint · analizatory&lt;br/&gt;każde AC-id ma guardrail"] --&gt;|"po każdej turze"| AG
+  H["git log · stare plany i recapy&lt;br/&gt;poza repo lub gitignored"] -.-&gt;|"tylko gdy ktoś pyta"| AG
+  </pre><figcaption>Warstwy kontekstu w repo: co agent dostaje zawsze, co na żądanie, co tylko na pytanie</figcaption></figure>
+
+  <table>
+    <tr><th>Warstwa</th><th>Co pilnuje jej aktualności</th></tr>
+    <tr><td><code>AGENTS.md</code> / <code>CLAUDE.md</code></td><td>limit długości; reguła „niżej” (wniosek: bramka)</td></tr>
+    <tr><td>spec feature'u</td><td>bramka: każde AC-id ma guardrail, każdy id w guardrailu istnieje w specyfikacji; test bez id jest dozwolony</td></tr>
+    <tr><td>decyzje</td><td>nic nie trzeba: nigdy nie edytowane, zmiana zdania to nowy wpis</td></tr>
+    <tr><td>bramka</td><td>agent nie może jej edytować</td></tr>
+    <tr><td><code>CONTEXT.md</code> w module legacy</td><td>krótki, poprawiony przez człowieka; poprawia go ten, kto wchodzi do modułu</td></tr>
+    <tr><td>git log, stare plany i recapy</td><td>nic: poza repo albo gitignored</td></tr>
+  </table>
+
+  <div class="callout warn"><p><b>Pułapka: jeden wielki plik instrukcji.</b> OpenAI: duży AGENTS.md zjadał kontekst i szybko się dezaktualizował; zastąpiono go ~100 liniami, które tylko odsyłają do docs. CMU: „dokumentacja dryfuje, kontekst puchnie, koszt tokenów rośnie”. Typowy objaw: agent „skanuje i zapomina” plik na 800 linii.</p></div>
+</section>
+
+<section data-role="spec-shape">
+  <h2 id="wniosek-z-czego-sklada-sie-spec-ktora-nie-gnije">Wniosek: z czego składa się spec, która nie gnije</h2>
+  <p>Nie jeden format dla wszystkich, tylko zbiór sekcji, po które się sięga, gdy jest powód, i reguł, które trzymają je przy życiu. Spec opisuje <b>co</b> i, gdy był wybór, <b>dlaczego</b>. Nigdy <b>jak</b>: to należy do planu, a plan jest jednorazowy i gitignored.</p>
+  <table>
+    <tr><th>Sekcja</th><th>Kiedy</th><th>Co zawiera</th><th>Co ją trzyma przy życiu</th></tr>
+    <tr><td><b>Problem i cel</b></td><td>zawsze</td><td>dla kogo, co ma się zmienić w zachowaniu, czego nie robimy</td><td>zdanie, które opisuje plik, klasę albo krok, wędruje do planu</td></tr>
+    <tr><td><b>Zachowanie i scenariusze</b></td><td>gdy zmiana jest widoczna z zewnątrz</td><td>co widzi użytkownik albo wywołujący, przypadki brzegowe, szkice ekranów</td><td>opisane jako obserwowalne wyniki, nie jako mechanizm</td></tr>
+    <tr><td><b>Kryteria akceptacyjne</b> jako lista z <code>AC-&lt;feature&gt;-n</code></td><td>zawsze</td><td>jedno sprawdzalne zachowanie na punkt; id nadawany raz, nigdy nie reużywany</td><td>każde ma guardrail na bramce; niesprawdzalne idzie do prozy albo wylatuje</td></tr>
+    <tr><td><b>Kontrakt na granicy</b></td><td>gdy feature ma konsumentów</td><td>nazwa i wersja wersjonowanego artefaktu (OpenAPI, schemat eventu) z linkiem; w apce jedno zdanie „używa rabaty@v2”</td><td>link do wersji, nie kopia kształtu prozą</td></tr>
+    <tr><td><b>Decyzje</b></td><td>gdy wybierano między opcjami</td><td>jedno zdanie: co wybrano i czemu nie inaczej; gdy decyzja dotyczy wielu feature'ów, link do pliku w <code>docs/adr/</code> zamiast powtarzania</td><td>nie edytowana: zmiana zdania to nowy wpis ze wskazaniem, co zastępuje</td></tr>
+    <tr><td><b>Poza zakresem</b> <span class="tag muted">opcjonalna</span></td><td>gdy ktoś mógłby założyć więcej</td><td>co celowo nie wchodzi</td><td>chroni przed rozszerzaniem zakresu przez agenta</td></tr>
+    <tr><td><b>Otwarte pytania</b> <span class="tag muted">tymczasowe</span></td><td>do zatwierdzenia</td><td>decyzje właściciela z rekomendacją</td><td>po odpowiedzi znikają; odpowiedź wchodzi w treść</td></tr>
+    <tr><td><b>Delta per zadanie</b> <span class="tag muted">tymczasowe</span></td><td>gdy spec już istnieje</td><td>zmiana jako diff kryteriów: nowe, zmienione, usunięte AC</td><td>po merge spec przepisana, jakby tak było od początku; historią jest git</td></tr>
+  </table>
+
+  <div class="versus">
+    <div class="before"><h4><span class="tag bad">Nie w specyfikacji</span></h4>
+      <ul><li>plan, kroki, nazwy plików i klas, kształt kodu</li>
+        <li>historia zmian („zmieniono z…”, „wcześniej było…”)</li>
+        <li>kopia zachowania cudzego feature'u</li>
+        <li>lista konsumentów kontraktu i ich wersji: zrzut cudzego stanu, nic go nie czerwieni, gdy apka podbije wersję</li>
+        <li>instrukcje dla agenta (to AGENTS.md albo reguła niżej)</li>
+        <li>kryterium, którego nic nie może sprawdzić</li></ul></div>
+    <div class="after"><h4><span class="tag ok">W specyfikacji</span></h4>
+      <ul><li>intencja i zachowanie, które przeżyje refaktor</li>
+        <li>git log i zapisane decyzje jako historia</li>
+        <li>link do wersji kontraktu właściciela; dotknięci konsumenci w ticketach zadania, nie w specyfikacji</li>
+        <li>reguła, która nie dała się wyrazić niżej, tylko jako zdanie</li>
+        <li>kryterium z id i guardrailem, który pada, gdy zachowanie pęknie</li></ul></div>
+  </div>
+
+  <div class="strip"><span class="lbl">Test gnicia</span> zdanie, które trzeba zmienić przy refaktorze bez zmiany zachowania, nie należy do specyfikacji</div>
+</section>
+
+<section data-role="gate-shape">
+  <h2 id="wniosek-z-czego-sklada-sie-bramka-ktorej-mozna-ufac">Wniosek: z czego składa się bramka, której można ufać</h2>
+  <p>Bramka to wszystko, co uruchamia się samo i mówi „czerwone”: testy, lint, analizatory, check kontraktu, hooki. Spec mówi, co ma powstać; bramka jest jedynym dowodem, że powstało i że dalej działa. Reviewer nie zastępuje bramki, tylko ją czyta. Każda własność niżej ma sposób sprawdzenia, że naprawdę jest, a nie tylko „jest w CI”.</p>
+  <table>
+    <tr><th>Własność</th><th>Po co</th><th>Jak sprawdzić, że jest</th></tr>
+    <tr><td><b>Jeden skrypt, dwa tryby</b></td><td>po każdej turze agenta nie da się czekać minut; przed pushem i w CI nie wolno nic pominąć</td><td>tryb <code>--quick</code> w hooku po turze: typy, lint, szybkie testy; tryb pełny przed pushem i w CI, identyczny; CI jest ostatecznym strażnikiem, bo agent sam decyduje, kiedy odpali pełny</td></tr>
+    <tr><td><b>Quick naprawdę szybki</b></td><td>hook, który trwa dłużej niż chwilę, zostanie wyłączony</td><td>twardy limit 20 sekund, pilnowany od szablonu: skrypt mierzy swój czas i pada, gdy go przekroczy; co nie mieści się w limicie, idzie do trybu pełnego; e2e w osobnym jobie</td></tr>
+    <tr><td><b>Poza zasięgiem agenta</b></td><td>agent, który może edytować test, ogrywa go zamiast naprawiać kod (SpecBench, EvilGenie)</td><td>pliki, których agent nie może zmienić bez zatwierdzenia człowieka: nagrane wzorce zachowania (testy charakteryzacyjne, snapshoty), testy e2e, skrypt i konfiguracja bramki; wymusza to hook w szablonie, który odrzuca edycję tych plików przez agenta; człowiek zmienia je świadomie, w sesji uruchomionej z flagą</td></tr>
+    <tr><td><b>Spięta ze specyfikacją</b></td><td>spec i kod nie rozjeżdżają się po cichu</td><td>każde AC-id ma guardrail, id bez specyfikacji jest czerwone, test bez id dozwolony</td></tr>
+    <tr><td><b>Pominięcie = porażka</b></td><td>wyłączony test to zielona bramka, która nic nie pilnuje</td><td>SKIP, ignore i wyłączona reguła wychodzą na czerwono</td></tr>
+    <tr><td><b>Granica między repozytoriami: kontrakt</b> (backend ↔ apki)</td><td>złamanie widać u właściciela, zanim zobaczą je apki</td><td>diff wygenerowanego schematu wobec gałęzi głównej w CI backendu (poziom 1 kontraktu); w apce typy z kontraktu, więc złamanie to błąd kompilacji</td></tr>
+    <tr><td><b>Granica wewnątrz solucji: referencje jako kod</b> (nowy moduł obok legacy)</td><td>moduł jest modułem tylko, gdy coś zabrania legacy sięgać do jego środka, a modułowi do legacy inaczej niż przez adapter</td><td>test architektury albo analizator, który pada przy odwołaniu przez granicę, jako wymagany check</td></tr>
+    <tr><td><b>Czerwone mówi, co naprawić</b></td><td>agent naprawia sam tylko to, co rozumie; „exit 1” bez komunikatu kończy się zgadywaniem</td><td>każda reguła ma komunikat z id kryterium albo nazwą reguły i wskazaniem miejsca</td></tr>
+    <tr><td><b>Deterministyczna</b></td><td>flaky test uczy ignorować czerwone</td><td>retry nie maskuje; test, który pada losowo, jest naprawiany albo usuwany w tym samym tygodniu</td></tr>
+    <tr><td><b>Udowodniona</b>, nie zakładana</td><td>zielona bramka bez dowodu, że umie być czerwona, to dekoracja</td><td>kwartalny seeded-bug drill: celowo zepsute zachowanie łapie bramka, nie człowiek</td></tr>
+    <tr><td><b>Rośnie z review</b></td><td>uwaga, którą reviewer powtarza, to reguła, której brakuje</td><td>reguła „niżej”: typ → lint → test → hook; zdanie w AGENTS.md tylko dla tego, czego nic nie sprawdzi</td></tr>
+  </table>
+
+  <div class="versus">
+    <div class="before"><h4><span class="tag bad">Nie jest bramką</span></h4>
+      <ul><li>prośba w AGENTS.md albo w promptcie („pamiętaj, żeby…”)</li>
+        <li>test, który agent może przepisać, gdy mu przeszkadza</li>
+        <li>check, który tylko ostrzega; ostrzeżeń nikt nie czyta</li>
+        <li>ręczny krok w checkliście PR</li>
+        <li>AC „wszyscy konsumenci dalej działają”: to nie zachowanie feature'u, tylko własność CI z wiersza „kontrakt pod kontrolą”</li></ul></div>
+    <div class="after"><h4><span class="tag ok">Jest bramką</span></h4>
+      <ul><li>reguła jako typ, analizator, lint albo test z komunikatem</li>
+        <li>test, którego agent nie zmieni bez zatwierdzenia człowieka i który pada, gdy zachowanie pęknie</li>
+        <li>czerwone, które blokuje merge</li>
+        <li>ten sam skrypt: <code>--quick</code> w hooku, pełny przed pushem i w CI</li>
+        <li>check zgodności kontraktu u właściciela</li></ul></div>
+  </div>
+
+  <div class="strip"><span class="lbl">Reguła niżej</span> zanim dopiszesz zdanie do AGENTS.md: typ → analizator lub lint → test → hook; zdanie tylko dla tego, czego żadne z nich nie sprawdzi</div>
+  <div class="strip"><span class="lbl">Test bramki</span> jeśli celowo zepsute zachowanie złapał człowiek, zanim zrobiła to bramka, bramka jest za słaba w tym miejscu</div>
+</section>
+
+<section data-role="alternatives">
+  <h2 id="alternatywy-wobec-baseline-u">Alternatywy wobec baseline'u</h2>
+  <p>Każda karta: kto tak pracuje, co zyskuje i co traci <b>względem baseline'u</b>. Żadna nie jest w całości lepsza; dwie warto wbudować w baseline jako ścieżki dla innych rozmiarów zadań.</p>
+  <div class="cards" style="--cols:3">
+    <div><span class="ico">🎫</span><h4>a. Ticket + testy akceptacyjne</h4><p class="when">Copilot agent, Devin na ticketach</p><p><b>+</b> zero narzutu na małe zadania, pasuje do istniejącego procesu<br/><b>−</b> tickety są mgliste; brak id, brak sprawdzenia spec↔kod; intencja zostaje w trackerze</p><div class="foot"><span class="tag ok">wbudować jako tier S</span></div></div>
+    <div><span class="ico">🧪</span><h4>b. Testy najpierw (TDD / BDD)</h4><p class="when">praktycy; brak raportu z firmy</p><p>Test pisany przed kodem jest specyfikacją, która się wykonuje. BDD to to samo, tylko test ma formę scenariusza w języku biznesu: „gdy klient ma rabat, koszyk pokazuje cenę po rabacie”. W legacy odpowiednikiem jest nagranie obecnego zachowania przed zmianą, czyli testy charakteryzacyjne.<br/><b>+</b> nie gnije, bo pada, gdy kod się rozjedzie<br/><b>−</b> test mówi, co ma być, nie czemu; agent ogrywa słabe testy; review testów staje się wąskim gardłem</p><div class="foot"><span class="tag note">baseline już to zawiera</span></div></div>
+    <div><span class="ico">📚</span><h4>c. Żywa spec per feature, narzędziem</h4><p class="when">Kiro, OpenSpec, Tessl</p><p><b>+</b> delta-spec dobra dla brownfieldu; jeden opis stanu<br/><b>−</b> decay przez zależności; narzędzia niedojrzałe i niedeterministyczne; dużo plików do review</p><div class="foot"><span class="tag note">baseline = ten model, własnymi skillami</span></div></div>
+    <div><span class="ico">🔄</span><h4>d. Pętle autonomiczne</h4><p class="when">Ralph loop, Devin, Codex cloud; Nubank, Amazon Q</p><p><b>+</b> świetne do migracji mechanicznych z obiektywnym sprawdzianem (8–12× szybciej wg vendora)<br/><b>−</b> agent „przemilcza” problemy, żeby pętla szła; wymaga ostro ograniczonego zadania i bramki, której nie widzi</p><div class="foot"><span class="tag ok">wbudować dla migracji</span></div></div>
+    <div><span class="ico">🚦</span><h4>e. Risk-tiered merge</h4><p class="when">Vercel, Augment Cosmos</p><p><b>+</b> 58% PR bez człowieka, 0 revertów w próbie; reviewerzy wracają do trudnych PR<br/><b>−</b> wymaga zaufanej bramki i klasyfikatora ryzyka; vendor</p><div class="foot"><span class="tag ok">wbudować jako dwie ścieżki</span></div></div>
+  </div>
+
+  <h3>Która kiedy</h3>
+  <div class="pick">
+    <div class="if">Bug, literówka, drobna zmiana bez nowego zachowania</div><div class="then">a. ticket + AC jako test <small>bez specyfikacji</small></div>
+    <div class="if">Zmiana zachowania widocznego dla użytkownika albo kontraktu</div><div class="then">baseline: spec + plan + recap <small>pełny flow</small></div>
+    <div class="if">Migracja mechaniczna (Java 8→17, zmiana ORM, 500 plików)</div><div class="then ok">d. pętla + bramka + próbka do review <small>człowiek na spec i audycie</small></div>
+    <div class="if">Legacy bez testów</div><div class="then note">najpierw b. testy charakteryzacyjne <small>dopiero potem agent</small></div>
+  </div>
+</section>
+
+<section data-role="approach">
+  <h2 id="baseline-v2-piec-poprawek">Baseline v2: pięć poprawek</h2>
+  <figure class="diagram"><pre class="mermaid">flowchart TB
+  T{"triage: rozmiar i ryzyko"}
+  T --&gt;|"S: bug, drobiazg"| S1["ticket + AC jako test"]
+  T --&gt;|"M: zmiana zachowania"| M1["krótki spec: delta w żywej spec"]
+  T --&gt;|"L: feature, kontrakt"| L1["pełny spec + plan"]
+  S1 --&gt; B["agent buduje w szablonie&lt;br/&gt;quick po każdej turze, pełna bramka przed pushem&lt;br/&gt;agent nie edytuje bramki"]
+  M1 --&gt; B
+  L1 --&gt; B
+  B --&gt; R["recap / deviation&lt;br/&gt;AC z dowodami"]
+  R --&gt; H{"na liście „zawsze ostrożnie”?"}
+  H --&gt;|"tak"| HR["ostrożna: człowiek czyta spec, stronę guardraili i diff"]
+  H --&gt;|"nie"| HS["zwykła: człowiek czyta spec i stronę guardraili&lt;br/&gt;agent-reviewer: diff"]
+    HR --&gt; MG["merge · finalna spec w commicie"]
+  HS --&gt; MG
+    </pre><figcaption>Jedno zadanie w baseline v2: triage rozmiaru → ścieżka → bramka → ścieżka review → merge</figcaption></figure>
+
+  <div class="cards" style="--cols:3">
+    <div><span class="ico">📏</span><h4>1. Spec w skali zadania</h4><p class="when">CMU, Böckeler</p><p>Jawna reguła „kiedy pełna spec”, trzy tiery, czyli rozmiary zadania: S = ticket + test z id, M = delta w istniejącej spec, L = spec + plan. Bez tego ludzie i tak pominą SDD, tylko nie powiedzą. Tier proponuje skill w pluginie: czyta zadanie, istniejące specyfikacje i kod, wskazuje tier, dotkniętą spec i następny krok; człowiek zatwierdza jednym słowem.</p><div class="foot"><span class="tag ok">tanie</span></div></div>
+    <div><span class="ico">🪜</span><h4>2. Dwie ścieżki review</h4><p class="when">Vercel, uproszczone</p><p>Zwykła: człowiek czyta spec i stronę guardraili, diff ogląda agent-reviewer. Ostrożna: człowiek czyta też diff. O ścieżce decyduje krótka lista „zawsze ostrożnie”: logowanie i uprawnienia, płatności, migracje danych, legacy bez testów charakteryzacyjnych. Reszta idzie zwykłą ścieżką od pierwszego dnia. Bez szczebli, progów i awansów: listę przegląda się raz na kwartał po incydentach i po tym, co wyszło w review.</p><div class="foot"><span class="tag ok">kluczowe</span></div></div>
+    <div><span class="ico">🎯</span><h4>3. Bramka, której nie da się ograć</h4><p class="when">SpecBench, EvilGenie</p><p>Agent-reviewer ≠ agent-autor, także dla strony guardraili, którą czyta człowiek zamiast kodu testów. Własności bramki, które to zamykają (poza zasięgiem agenta, pominięcie = porażka, udowodniona seeded-bug drillem), zebrane są w sekcji „Wniosek: bramka”.</p><div class="foot"><span class="tag warn">wymaga dyscypliny</span></div></div>
+    <div><span class="ico">👀</span><h4>4. Spec, którą człowiek przeczyta</h4><p class="when">CMU</p><p>Czytanie specyfikacji to jedyny moment decyzji „co ma powstać”. Kolejność: problem → decyzje → AC; reszta zwinięta. AC zawsze zatwierdza człowiek, nawet gdy agent pisze resztę. Zmiany AC pokazywane jako diff.</p><div class="foot"><span class="tag ok">tanie</span></div></div>
+    <div><span class="ico">🔌</span><h4>5. Kontrakt na granicy, poziom 1</h4><p class="when">DORA, mój szablon</p><p>Jeden job w CI backendu: diff wygenerowanego <code>openapi.json</code> wobec gałęzi głównej, czerwony przy zmianie łamiącej. Apka generuje typy z konkretnego commita backendu i ma jego SHA w nagłówku pliku. Nikt nie zmienia nawyku; wyższe poziomy dopiero po pomiarze.</p><div class="foot"><span class="tag ok">narzędzie, nie procedura</span></div></div>
+  </div>
+
+  <h3>Dwie ścieżki review</h3>
+  <table>
+    <tr><th>Ścieżka</th><th>Co czyta człowiek</th><th>Kto czyta diff</th><th>Kiedy</th></tr>
+    <tr><td><span class="tag ok">zwykła</span></td><td>spec, strona guardraili, recap</td><td>agent-reviewer, inny niż autor</td><td>wszystko, czego nie ma na liście</td></tr>
+    <tr><td><span class="tag warn">ostrożna</span></td><td>to samo plus diff</td><td>człowiek i agent-reviewer</td><td>lista „zawsze ostrożnie”: logowanie i uprawnienia, płatności, migracje danych, legacy bez testów charakteryzacyjnych</td></tr>
+  </table>
+  <div class="strip"><span class="lbl">Co trzyma listę w ryzach</span> uwaga z review, która się powtarza, staje się regułą na bramce · lista przeglądana raz na kwartał po incydentach · seeded-bug drill mówi, czy bramce w ogóle można ufać</div>
+</section>
+
+<section data-role="brownfield">
+  <h2 id="brownfield-od-czego-zaczac">Brownfield: od czego zacząć</h2>
+  <div class="callout decision"><p><b>W legacy kolejność jest odwrotna niż w greenfieldzie: najpierw testy charakteryzacyjne i bramka, potem specki, na końcu moduły z szablonu.</b> AI jest wzmacniaczem (DORA 2025): w poplątanym kodzie agent szybciej produkuje więcej poplątania, więc zanim wejdzie do legacy, legacy dostaje cztery rzeczy: AGENTS.md jako mapę repo, CONTEXT.md w modułach, które zamierzasz ruszać, testy charakteryzacyjne wokół tego kodu (nagrywają, jak zachowuje się dziś, bez oceniania, czy dobrze, i od tej pory porównują; agent nie może ich edytować) oraz skrypt bramki z trybem quick i pełnym. Nic więcej; bez zakazu dotykania legacy. Nowe rzeczy rosną jako <b>osobne projekty w tej samej solucji</b>, jeden na grupę feature'ów, nie jako foldery w istniejących projektach i nie jako mikroserwisy: referencja projektu to granica, którą pilnuje kompilator, a test architektury dokłada regułę, że legacy nie sięga do środka modułu, tylko przez adapter.</p></div>
+
+  <h3>Cztery pomysły na „gdzie ma żyć nowy kod”</h3>
+  <table>
+    <tr><th>Pomysł</th><th>Werdykt</th><th>Dlaczego</th></tr>
+    <tr><td>Nowe moduły jako nowe mikroserwisy, żeby były greenfieldem</td><td><span class="tag bad">nie</span> chyba że powód operacyjny</td><td>sieć, deploy, wersjonowanie; agent traci kontekst między repo; legacy, gdzie jest 80% pracy, dalej nie jest bezpieczne; ryzyko rozproszonego monolitu</td></tr>
+    <tr><td>Każdy feature jako nowy projekt w solucji</td><td><span class="tag bad">nie</span> zła granulacja</td><td>moduł to grupa feature'ów z własnym językiem i danymi; projekt per feature to rozdrobnienie bez granicy</td></tr>
+    <tr><td>Nowe moduły jako projekty w tej samej solucji, z wymuszoną granicą</td><td><span class="tag ok">tak, domyślnie</span></td><td>osobny projekt (.csproj) na grupę feature'ów, w tym samym repo i deployu; referencja projektu to granica pilnowana przez kompilator, test architektury dokłada zakaz sięgania z legacy do środka modułu; granica tak twarda jak osobne repo, a agent widzi oba końce integracji</td></tr>
+    <tr><td>Zmiany bezpośrednio w projektach legacy</td><td><span class="tag note">nieuniknione</span> więc najpierw harness</td><td>tam dzieje się większość pracy; bez mapy, testów charakteryzacyjnych i CI agent wzmacnia poplątanie; z nimi każda zmiana ma delta-spec i testy, które padną, gdy coś pęknie</td></tr>
+  </table>
+
+  <h3>Gdzie trafia zmiana</h3>
+  <div class="pick">
+    <div class="if">Nowa grupa feature'ów z czytelnym wejściem i wyjściem</div><div class="then ok">nowy moduł z szablonu <small>w solucji, za kontraktem; w legacy tylko adapter</small></div>
+    <div class="if">Zmiana wewnątrz legacy</div><div class="then">w miejscu, po testach <small>najpierw testy charakteryzacyjne wokół dotykanego kodu, potem delta-spec; bez refaktoru „przy okazji”</small></div>
+    <div class="if">Obszar legacy dotykany co sprint: kandydat na cięcie stranglera, czyli wyjęcie jednego kawałka legacy za własną granicę (szew w legacy → nowy moduł → przełączenie ruchu → usunięcie starego kodu)</div><div class="then note">wyjąć za granicę <small>jedno cięcie naraz</small></div>
+    <div class="if">Bug</div><div class="then muted">w miejscu, ticket + test <small>bez specyfikacji</small></div>
+  </div>
+
+  <figure class="diagram"><pre class="mermaid">flowchart LR
+  H["1 · harness&lt;br/&gt;AGENTS.md jako mapa · CONTEXT.md&lt;br/&gt;build i test jednym poleceniem"] --&gt; N["2 · testy charakteryzacyjne&lt;br/&gt;wokół kodu, który ruszasz&lt;br/&gt;poza zasięgiem agenta"]
+  N --&gt; S["3 · specki&lt;br/&gt;delta per zmiana, S/M/L&lt;br/&gt;bramka AC-id ↔ guardrail"]
+  S --&gt; M["4 · moduły&lt;br/&gt;nowe i gorące obszary&lt;br/&gt;z szablonu, za kontraktem"]
+  M --&gt; L["5 · dwie ścieżki review&lt;br/&gt;lista „zawsze ostrożnie”&lt;br/&gt;reszta bez diffu"]
+  </pre><figcaption>Kolejność w legacy: każdy krok daje zysk sam; następny bez poprzedniego wzmacnia chaos</figcaption></figure>
+
+  <div class="strip"><span class="lbl">Jedna zasada</span> spec nie opisuje całego legacy: krótka mapa systemu na start, a pokrycie speckami rośnie tam, gdzie się pracuje</div>
+</section>
+
+<section data-role="verification">
+  <h2 id="jak-poznamy-ze-dziala">Jak poznamy, że działa</h2>
+  <p>Trzy liczby, nie dziesięć: zapisane w dniu zero, porównywane raz na kwartał, osobno dla modułów z szablonu i dla legacy.</p>
+  <table>
+    <tr><th>Liczba</th><th>Po co</th><th>Sygnał alarmowy</th></tr>
+    <tr><td>Incydenty i reverty po merge</td><td>czy nie płacimy jakością za tempo (DORA: AI zwykle podnosi niestabilność)</td><td>więcej niż w dniu zero → wydłużyć listę „zawsze ostrożnie”</td></tr>
+    <tr><td>Czas od ticketu do merge</td><td>czy naprawdę przyspieszamy; nie wierzymy w cudze procenty</td><td>brak poprawy po dwóch kwartałach</td></tr>
+    <tr><td><b>Podłożone błędy</b> (seeded-bug drill): raz na kwartał ktoś celowo psuje w gałęzi kilka zachowań, np. rabat liczony źle, i puszcza to przez proces jak zwykłą zmianę; liczy się, ile z tych błędów zatrzymała bramka, a ile zauważył dopiero człowiek</td><td>zwykła ścieżka zakłada, że człowiek nie czyta diffu, bo pilnuje bramka; to jedyny sposób, żeby sprawdzić, czy naprawdę pilnuje</td><td>błąd przeszedł przez bramkę i zauważył go dopiero człowiek albo nikt → w tym miejscu dopisać test, zanim zwykła ścieżka obejmie więcej</td></tr>
+  </table>
+  <p class="wf-muted">Jeśli narzędzia dają to za darmo: % PR bez poprawek na zwykłej vs ostrożnej ścieżce; delty w speckach apek na jedną zmianę backendu (miara sprzężenia z sekcji o eksplozji); spec bez zmian od dwóch kwartałów przy aktywnym kodzie (wczesny sygnał gnicia). Niczego z tego nie liczyć ręcznie.</p>
+</section>
+
+<section data-role="risks">
+  <h2 id="czego-research-nie-wie">Czego research nie wie</h2>
+  <div class="callout warn"><p><b>Nikt nie zmierzył, że pokrycie kryteriów guardrailami przewiduje mniej defektów.</b> CMU widzi korelację (ci, którzy zatwierdzali AC, nie zgłaszali problemu z weryfikacją), nie przyczynę. Seeded-bug drill we własnym zespole będzie pierwszym twardym dowodem.</p></div>
+  <div class="callout warn"><p><b>Czy spec + AI review zastępuje ludzkie review kodu:</b> tylko Vercel i OpenAI, oboje z interesem w odpowiedzi. Stąd lista wyjątków, nie jedna decyzja dla wszystkiego.</p></div>
+  <div class="callout warn"><p><b>Greenfield szablon jako pierwszy krok firmy legacy:</b> brak dowodów za ani przeciw. DORA sugeruje, że bez podstaw (CI, małe partie) zespoły legacy zyskują najmniej. Stąd w sekcji o brownfieldzie testy charakteryzacyjne i bramka na legacy idą przed szablonem.</p></div>
+  <div class="callout assumption"><p>Liczby Faros, Vercel, OpenAI, Amazon i Nubank pochodzą od firm z interesem w wyniku; kierunek traktujemy jako spójny, procenty jako orientacyjne. Wpis OpenAI czytany przez streszczenie InfoQ, nie oryginał (403).</p></div>
+</section>
+
+<section data-role="sources">
+  <h2 id="zrodla">Źródła</h2>
+  <details open><summary>Lista źródeł (20)</summary>
+    <h4>Badania</h4>
+    <ul>
+      <li>Agarwal, Singhal, Macvean, Vasilescu, Breaux — <a href="https://arxiv.org/abs/2608.25202">Spec-Driven Development as Prescribed and as Practiced</a> (CMU, Google; arXiv 2608.25202 v4, paź 2026)</li>
+      <li>Zhao i in. — <a href="https://arxiv.org/abs/2605.21384">SpecBench: Measuring Reward Hacking in Long-Horizon Coding Agents</a> (maj 2026)</li>
+      <li><a href="https://arxiv.org/abs/2511.21654">EvilGenie: reward hacking w agentach kodujących</a> (rew. maj 2026)</li>
+      <li>DORA — <a href="https://dora.dev/research/ai">State of AI-assisted Software Development 2025</a>; <a href="https://www.infoq.com/news/2025/09/dora-state-of-ai-in-dev-2025">omówienie InfoQ</a></li>
+      <li>GitClear — <a href="https://www.gitclear.com/ai_assistant_code_quality_2025_research">AI code quality 2025: churn, duplikacja</a></li>
+      <li>Google — <a href="https://research.google/blog/resolving-code-review-comments-with-ml/">Resolving code review comments with ML</a> (2024)</li>
+    </ul>
+    <h4>Praktycy</h4>
+    <ul>
+      <li>Böckeler — <a href="https://martinfowler.com/articles/exploring-gen-ai/sdd-3-tools.html">Understanding Spec-Driven Development: Kiro, spec-kit, Tessl</a> (paź 2025)</li>
+      <li>Thoughtworks — <a href="https://www.thoughtworks.com/radar/techniques/spec-driven-development">Technology Radar: spec-driven development (Assess)</a> (lis 2025)</li>
+      <li><a href="https://www.tddbuddy.com/blog/spec-driven-is-the-drift-trap/">Spec-driven is the drift trap reborn</a> (lip 2026)</li>
+      <li>Perez — <a href="https://www.alfredo-perez.dev/blog/2026-10-15-living-specs">Living Specs for Spec Kit</a> (paź 2026)</li>
+      <li>Osmani — <a href="https://addyosmani.com/blog/comprehension-debt/">Comprehension debt</a></li>
+      <li><a href="https://blog.scottlogic.com/2026/05/14/the-human-bottleneck.html">Scott Logic — The human bottleneck</a> (maj 2026)</li>
+      <li><a href="https://dev.to/tmfrisinger/characterization-tests-are-how-agents-enter-legacy-code-2e48">Characterization tests are how agents enter legacy code</a></li>
+      <li><a href="https://martinelli.ch/why-spec-driven-development-tools-fail-in-the-enterprise/">Why SDD tools fail in the enterprise</a></li>
+    </ul>
+    <h4>Vendorzy i firmy</h4>
+    <ul>
+      <li>Vercel — <a href="https://vercel.com/blog/58-percent-of-prs-in-our-largest-monorepo-merge-without-human-review">58% of PRs merge without human review</a> (kwi 2026)</li>
+      <li>OpenAI — <a href="https://openai.com/blog/harness-engineering">Harness engineering</a> (lut 2026); <a href="https://www.infoq.com/news/2026/02/openai-harness-engineering-codex">streszczenie InfoQ</a></li>
+      <li>Faros — <a href="https://www.faros.ai/ai-productivity-paradox">The AI Productivity Paradox</a> (2025)</li>
+      <li>Microsoft — <a href="https://developer.microsoft.com/blog/spec-driven-development-ai-native-engineering/">SDD w AI-native engineering</a> (cze 2026)</li>
+      <li>GitHub <a href="https://github.com/github/spec-kit/blob/main/spec-driven.md">Spec Kit</a> · AWS <a href="https://kiro.dev/docs/specs/best-practices">Kiro specs</a> · <a href="https://github.com/Fission-AI/OpenSpec">OpenSpec</a></li>
+      <li>Anthropic — <a href="https://claude.com/blog/how-anthropic-teams-use-claude-code">How Anthropic teams use Claude Code</a>; Cognition — <a href="https://devin.ai/customers/itau">Nubank/Devin migracja ETL</a></li>
+    </ul>
+  </details>
+</section>

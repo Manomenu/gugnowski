@@ -1,0 +1,76 @@
+---
+import Base from "../layouts/Base.astro";
+import "../styles/post.css";
+import { posts, headings, readingMinutes, formatDate } from "../posts";
+
+export function getStaticPaths() {
+  return posts.map((post) => ({ params: { slug: post.slug }, props: { post } }));
+}
+const { post } = Astro.props;
+const toc = headings(post.html);
+---
+<Base title={`${post.title} · gugnowski / blog`} description={post.description}>
+  <div class="wrap post-layout">
+    <nav class="toc" aria-label="Spis treści">
+      <p class="toc-title">Spis treści</p>
+      {toc.map((h) => <a href={`#${h.id}`}>{h.text}</a>)}
+    </nav>
+    <article class="post">
+      <header class="post-head">
+        <a class="back" href="/">← Wszystkie wpisy</a>
+        <p class="post-meta"><span class="kind">{post.kind}</span><time datetime={post.date}>{formatDate(post.date)}</time><span>{readingMinutes(post.html)} min czytania</span></p>
+        <h1>{post.title}</h1>
+        <p class="post-lead">{post.description}</p>
+        <div class="post-tags">{post.tags.map((t) => <span>#{t.replace(/ /g, "-")}</span>)}</div>
+      </header>
+      <div class="prose" set:html={post.html} />
+    </article>
+  </div>
+</Base>
+<script>
+  const blocks = [...document.querySelectorAll<HTMLElement>("pre.mermaid")];
+  if (blocks.length) {
+    const sources = blocks.map((b) => b.textContent ?? "");
+    const isDark = () => {
+      const t = document.documentElement.dataset.theme;
+      return t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    };
+    const draw = async () => {
+      const { default: mermaid } = await import("mermaid");
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: isDark() ? "dark" : "neutral",
+        fontFamily: "Inter Variable, system-ui, sans-serif",
+        flowchart: { htmlLabels: true, curve: "basis" },
+      });
+      for (const [i, block] of blocks.entries()) {
+        try {
+          const { svg } = await mermaid.render(`diagram-${i}-${Date.now()}`, sources[i]);
+          block.innerHTML = svg;
+          block.dataset.rendered = "true";
+        } catch (error) {
+          block.textContent = sources[i];
+          console.warn("Diagram could not be drawn", error);
+        }
+      }
+    };
+    draw();
+    document.addEventListener("themechange", draw);
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+  }
+
+  const links = [...document.querySelectorAll<HTMLAnchorElement>(".toc a")];
+  const targets = links
+    .map((a) => document.getElementById(a.hash.slice(1)))
+    .filter((el): el is HTMLElement => !!el);
+  const observer = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        links.forEach((a) => a.classList.toggle("active", a.hash === `#${entry.target.id}`));
+      }
+    },
+    { rootMargin: "-80px 0px -70% 0px" },
+  );
+  targets.forEach((t) => observer.observe(t));
+</script>
